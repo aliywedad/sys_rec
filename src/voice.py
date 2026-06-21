@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import os
+import re
 import tempfile
 
 import edge_tts
@@ -48,6 +49,31 @@ def _is_arabic(text: str) -> bool:
     return arabic > len(text) * 0.25
 
 
+def _sanitize_text_for_speech(text: str) -> str:
+    """Remove markdown, backticks and simple HTML from text before TTS."""
+    if not text:
+        return text
+
+    # Remove fenced code blocks and inline code ticks
+    text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
+    text = re.sub(r"`([^`]*)`", r"\1", text)
+
+    # Strip markdown emphasis and strong emphasis
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"__([^_]+)__", r"\1", text)
+    text = re.sub(r"\*([^*]+)\*", r"\1", text)
+    text = re.sub(r"_([^_]+)_", r"\1", text)
+
+    # Convert markdown links to plain text and remove HTML tags
+    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"<[^>]+>", "", text)
+
+    # Remove heading markers and collapse whitespace
+    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
 async def _tts_async(text: str, voice: str) -> bytes:
     rate = "+0%" if voice == ARABIC_VOICE else JARVIS_RATE
     communicate = edge_tts.Communicate(text, voice, rate=rate)
@@ -62,6 +88,7 @@ async def _tts_async(text: str, voice: str) -> bytes:
 
 def text_to_speech_bytes(text: str) -> bytes:
     """Generate MP3 audio using Microsoft Neural TTS (Jarvis-like voice)."""
+    text = _sanitize_text_for_speech(text)
     voice = ARABIC_VOICE if _is_arabic(text) else JARVIS_VOICE
     loop = asyncio.new_event_loop()
     try:

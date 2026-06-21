@@ -1,0 +1,11 @@
+mistralai
+SpeechRecognition
+PyAudio
+gTTS
+python-dotenv
+streamlit
+pandas
+numpy
+scikit-learn
+plotly
+audio-recorder-streamlit
